@@ -87,6 +87,10 @@ export function initHandler(shell) {
         process.stderr.write(chalk.dim(`Detected shell: ${resolved}`) + "\n");
     }
     process.stdout.write(getShellFunction(resolved) + "\n");
+    // When called with an explicit shell arg (e.g. `eval "$(wt init zsh)"`),
+    // the user just wants the shell function emitted to stdout — no guidance.
+    if (shell)
+        return;
     const rc = SHELL_RC[resolved];
     if (isAlreadyInstalled(rc)) {
         process.stderr.write(chalk.green(`Already installed in ${rc.file}`) + "\n");

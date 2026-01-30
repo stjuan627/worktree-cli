@@ -50,37 +50,33 @@ describe('initHandler', () => {
         expect(output).toContain('$argv');
     });
 
-    it('should write usage hint to stderr for zsh', async () => {
+    it('should be silent on stderr when called with explicit shell arg', async () => {
         const { initHandler } = await import('../src/commands/init.js');
         initHandler('zsh');
+
+        const stderrOutput = stderrSpy.mock.calls.map(c => c[0]).join('');
+        expect(stderrOutput).toBe('');
+    });
+
+    it('should show usage hint on stderr when auto-detecting shell', async () => {
+        process.env.SHELL = '/bin/zsh';
+        const { initHandler } = await import('../src/commands/init.js');
+        initHandler();
 
         const stderrOutput = stderrSpy.mock.calls.map(c => c[0]).join('');
         expect(stderrOutput).toContain('eval');
         expect(stderrOutput).toContain('.zshrc');
+        expect(stderrOutput).toContain("echo 'eval \"$(wt init zsh)\"' >> ~/.zshrc");
     });
 
-    it('should write config.fish hint for fish shell', async () => {
+    it('should show fish hints when auto-detecting fish', async () => {
+        process.env.SHELL = '/usr/local/bin/fish';
         const { initHandler } = await import('../src/commands/init.js');
-        initHandler('fish');
+        initHandler();
 
         const stderrOutput = stderrSpy.mock.calls.map(c => c[0]).join('');
         expect(stderrOutput).toContain('config.fish');
         expect(stderrOutput).not.toContain('.fishrc');
-    });
-
-    it('should include copyable append command in stderr', async () => {
-        const { initHandler } = await import('../src/commands/init.js');
-        initHandler('zsh');
-
-        const stderrOutput = stderrSpy.mock.calls.map(c => c[0]).join('');
-        expect(stderrOutput).toContain("echo 'eval \"$(wt init zsh)\"' >> ~/.zshrc");
-    });
-
-    it('should include fish append command for fish shell', async () => {
-        const { initHandler } = await import('../src/commands/init.js');
-        initHandler('fish');
-
-        const stderrOutput = stderrSpy.mock.calls.map(c => c[0]).join('');
         expect(stderrOutput).toContain("echo 'wt init fish | source' >> ~/.config/fish/config.fish");
     });
 
@@ -108,33 +104,26 @@ describe('initHandler', () => {
         expect(getShellFunction('fish')).not.toContain('2>/dev/null');
     });
 
-    it('should include reload command in stderr', async () => {
-        const { initHandler } = await import('../src/commands/init.js');
-        initHandler('zsh');
-
-        const stderrOutput = stderrSpy.mock.calls.map(c => c[0]).join('');
-        expect(stderrOutput).toContain('source ~/.zshrc');
-    });
-
-    it('should include fish reload command for fish', async () => {
-        const { initHandler } = await import('../src/commands/init.js');
-        initHandler('fish');
-
-        const stderrOutput = stderrSpy.mock.calls.map(c => c[0]).join('');
-        expect(stderrOutput).toContain('source ~/.config/fish/config.fish');
-    });
-
-    it('should show "already installed" when init line exists in rc file', async () => {
+    it('should show "already installed" when auto-detecting and init line exists', async () => {
+        process.env.SHELL = '/bin/zsh';
         mockReadFileSync.mockReturnValueOnce('some stuff\neval "$(wt init zsh)"\nmore stuff');
         const { initHandler } = await import('../src/commands/init.js');
-        initHandler('zsh');
+        initHandler();
 
         const stderrOutput = stderrSpy.mock.calls.map(c => c[0]).join('');
         expect(stderrOutput).toContain('Already installed');
         expect(stderrOutput).toContain('.zshrc');
         // Should not show append/reload commands
         expect(stderrOutput).not.toContain("echo '");
-        expect(stderrOutput).not.toContain('source');
+    });
+
+    it('should be silent on stderr when called with shell arg even if already installed', async () => {
+        mockReadFileSync.mockReturnValueOnce('eval "$(wt init zsh)"');
+        const { initHandler } = await import('../src/commands/init.js');
+        initHandler('zsh');
+
+        const stderrOutput = stderrSpy.mock.calls.map(c => c[0]).join('');
+        expect(stderrOutput).toBe('');
     });
 
     it('should still output shell function even when already installed', async () => {
