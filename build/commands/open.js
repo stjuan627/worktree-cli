@@ -11,7 +11,11 @@ function isEnoent(err) {
 export async function openWorktreeHandler(pathOrBranch = "", options) {
     try {
         // 1. Validate we're in a git repo
-        await execa("git", ["rev-parse", "--is-inside-work-tree"], { reject: false });
+        const { exitCode } = await execa("git", ["rev-parse", "--is-inside-work-tree"], { reject: false });
+        if (exitCode !== 0) {
+            process.stderr.write(chalk.red("Not inside a git repository.") + "\n");
+            process.exit(1);
+        }
         let targetWorktree = null;
         // Improvement #4: Interactive TUI for missing arguments
         if (!pathOrBranch) {

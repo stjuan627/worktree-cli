@@ -16,7 +16,11 @@ export async function openWorktreeHandler(
 ) {
     try {
         // 1. Validate we're in a git repo
-        await execa("git", ["rev-parse", "--is-inside-work-tree"], { reject: false });
+        const { exitCode } = await execa("git", ["rev-parse", "--is-inside-work-tree"], { reject: false });
+        if (exitCode !== 0) {
+            process.stderr.write(chalk.red("Not inside a git repository.") + "\n");
+            process.exit(1);
+        }
 
         let targetWorktree: WorktreeInfo | null = null;
 
