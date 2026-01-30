@@ -25,7 +25,7 @@ const FISH_FUNCTION = `function wt
   if test (count $argv) -gt 0 -a "$argv[1]" = "cd"
     set -l dir (command wt cd --print $argv[2..-1])
     if test $status -eq 0 -a -n "$dir"
-      builtin cd $dir
+      builtin cd -- "$dir"
     else
       command wt cd $argv[2..-1]
     end
