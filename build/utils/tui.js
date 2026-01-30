@@ -12,7 +12,7 @@ import { getWorktrees } from "./git.js";
  * @returns Selected worktree(s) or null if cancelled
  */
 export async function selectWorktree(options) {
-    const { message = "Select a worktree", excludeMain = false, multiSelect = false } = options;
+    const { message = "Select a worktree", excludeMain = false, multiSelect = false, stdout } = options;
     const worktrees = await getWorktrees();
     if (worktrees.length === 0) {
         console.log(chalk.yellow("No worktrees found."));
@@ -38,6 +38,7 @@ export async function selectWorktree(options) {
             choices,
             hint: '- Space to select. Enter to confirm.',
             instructions: false,
+            ...(stdout ? { stdout } : {}),
         });
         if (!response.worktrees || response.worktrees.length === 0) {
             return null;
@@ -45,7 +46,7 @@ export async function selectWorktree(options) {
         return response.worktrees;
     }
     else {
-        const response = await prompts({
+        const promptOpts = {
             type: 'autocomplete',
             name: 'worktree',
             message,
@@ -54,7 +55,10 @@ export async function selectWorktree(options) {
                 const lowercaseInput = input.toLowerCase();
                 return Promise.resolve(choices.filter((choice) => choice.title.toLowerCase().includes(lowercaseInput)));
             },
-        });
+        };
+        if (stdout)
+            promptOpts.stdout = stdout;
+        const response = await prompts(promptOpts);
         return response.worktree;
     }
 }

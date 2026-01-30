@@ -16,8 +16,9 @@ export async function selectWorktree(options: {
     message?: string;
     excludeMain?: boolean;
     multiSelect?: boolean;
+    stdout?: NodeJS.WritableStream;
 }): Promise<WorktreeInfo | WorktreeInfo[] | null> {
-    const { message = "Select a worktree", excludeMain = false, multiSelect = false } = options;
+    const { message = "Select a worktree", excludeMain = false, multiSelect = false, stdout } = options;
 
     const worktrees = await getWorktrees();
 
@@ -48,7 +49,8 @@ export async function selectWorktree(options: {
             choices,
             hint: '- Space to select. Enter to confirm.',
             instructions: false,
-        });
+            ...(stdout ? { stdout } : {}),
+        } as any);
 
         if (!response.worktrees || response.worktrees.length === 0) {
             return null;
@@ -56,12 +58,12 @@ export async function selectWorktree(options: {
 
         return response.worktrees as WorktreeInfo[];
     } else {
-        const response = await prompts({
+        const promptOpts: prompts.PromptObject = {
             type: 'autocomplete',
             name: 'worktree',
             message,
             choices,
-            suggest: (input, choices) => {
+            suggest: (input: string, choices: any[]) => {
                 const lowercaseInput = input.toLowerCase();
                 return Promise.resolve(
                     choices.filter((choice: any) =>
@@ -69,7 +71,9 @@ export async function selectWorktree(options: {
                     )
                 );
             },
-        });
+        };
+        if (stdout) (promptOpts as any).stdout = stdout;
+        const response = await prompts(promptOpts);
 
         return response.worktree as WorktreeInfo | null;
     }

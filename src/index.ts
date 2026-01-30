@@ -12,6 +12,8 @@ import { configHandler } from "./commands/config.js";
 import { prWorktreeHandler } from "./commands/pr.js";
 import { openWorktreeHandler } from "./commands/open.js";
 import { extractWorktreeHandler } from "./commands/extract.js";
+import { cdWorktreeHandler } from "./commands/cd.js";
+import { initHandler } from "./commands/init.js";
 
 const program = new Command();
 
@@ -148,6 +150,19 @@ program
   )
   .description("Open an existing worktree in the editor.")
   .action(openWorktreeHandler);
+
+program
+  .command("cd")
+  .argument("[pathOrBranch]", "Path to worktree or branch name")
+  .option("--print", "Print the resolved path to stdout instead of spawning a subshell")
+  .description("Opens a subshell in the selected worktree directory.")
+  .action(cdWorktreeHandler);
+
+program
+  .command("init")
+  .argument("[shell]", "Shell to generate integration for (zsh, bash, fish)")
+  .description("Output shell integration function for native cd support.")
+  .action(initHandler);
 
 program
   .command("extract")

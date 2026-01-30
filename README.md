@@ -111,12 +111,52 @@ wt open [pathOrBranch]
 
 **Interactive Selection**: Run `wt open` without arguments to see a fuzzy-searchable list of worktrees.
 
+Options:
+- `-e, --editor <editor>`: Editor to use for opening the worktree (overrides default editor)
+
+When the editor is set to `none` (via `wt config set editor none` or `-e none`), `wt open` prints **only the worktree path** to stdout (all UI/error output remains on stderr) instead of launching an editor. Note that this differs from `wt cd`, which opens a subshell in the worktree directory.
+
 Example:
 ```bash
 wt open                    # Interactive selection
 wt open feature/login      # Open by branch name
 wt open ./path/to/worktree # Open by path
 ```
+
+### CD into a worktree
+
+```bash
+wt cd [pathOrBranch]
+```
+
+Opens a new shell session inside the selected worktree directory. Type `exit` to return to your previous directory (on Unix, `Ctrl+D` also works; on Windows `cmd.exe`, use `Ctrl+Z` then Enter).
+
+Options:
+- `--print`: Print the resolved path to stdout instead of spawning a subshell
+
+Example:
+```bash
+wt cd                     # Interactive selection, opens shell in worktree
+wt cd feature/login       # Open shell in branch's worktree
+wt cd feature/login --print  # Print path only (for scripting)
+```
+
+### Shell Integration
+
+For native `cd` support (changes your current shell directory instead of spawning a subshell):
+
+```bash
+# Auto-detect shell and show setup instructions:
+wt init
+
+# Or specify explicitly — add to your .zshrc or .bashrc:
+eval "$(wt init zsh)"    # or bash
+
+# For fish, add to config.fish:
+wt init fish | source
+```
+
+After setup, `wt cd` will change your current shell's directory directly via a shell wrapper function.
 
 ### List worktrees
 

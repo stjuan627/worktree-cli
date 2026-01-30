@@ -1,23 +1,26 @@
 import { execa } from "execa";
 import chalk from "chalk";
 import { stat } from "node:fs/promises";
+import { constants } from "node:os";
 import { resolve } from "node:path";
-import { getDefaultEditor, shouldSkipEditor } from "../config.js";
 import { findWorktreeByBranch, findWorktreeByPath } from "../utils/git.js";
 import { selectWorktree } from "../utils/tui.js";
 function isEnoent(err) {
     return err instanceof Error && 'code' in err && err.code === 'ENOENT';
 }
-export async function openWorktreeHandler(pathOrBranch = "", options) {
+export async function cdWorktreeHandler(pathOrBranch = "", options = {}) {
     try {
-        // 1. Validate we're in a git repo
-        await execa("git", ["rev-parse", "--is-inside-work-tree"], { reject: false });
+        const gitCheck = await execa("git", ["rev-parse", "--is-inside-work-tree"], { reject: false });
+        if (gitCheck.exitCode !== 0 || gitCheck.stdout.trim() !== "true") {
+            process.stderr.write(chalk.red("Not inside a git work tree.") + "\n");
+            process.exit(1);
+        }
         let targetWorktree = null;
-        // Improvement #4: Interactive TUI for missing arguments
         if (!pathOrBranch) {
             const selected = await selectWorktree({
-                message: "Select a worktree to open",
+                message: "Select a worktree to cd into",
                 excludeMain: false,
+                ...(options.print ? { stdout: process.stderr } : {}),
             });
             if (!selected || Array.isArray(selected)) {
                 process.stderr.write(chalk.yellow("No worktree selected.") + "\n");
@@ -26,7 +29,7 @@ export async function openWorktreeHandler(pathOrBranch = "", options) {
             targetWorktree = selected;
         }
         else {
-            // Try to find by path first
+            // Check if argument is an existing filesystem path
             let pathStats = null;
             try {
                 pathStats = await stat(pathOrBranch);
@@ -64,18 +67,16 @@ export async function openWorktreeHandler(pathOrBranch = "", options) {
                     process.exit(1);
                 }
             }
-            // If not found by path, try by branch name
             if (!targetWorktree) {
                 targetWorktree = await findWorktreeByBranch(pathOrBranch);
                 if (!targetWorktree) {
                     process.stderr.write(chalk.red(`Could not find a worktree for branch "${pathOrBranch}".`) + "\n");
-                    process.stderr.write(chalk.yellow("Use 'wt list' to see existing worktrees, or run 'wt open' without arguments to select interactively.") + "\n");
+                    process.stderr.write(chalk.yellow("Use 'wt list' to see existing worktrees, or run 'wt cd' without arguments to select interactively.") + "\n");
                     process.exit(1);
                 }
             }
         }
         const targetPath = targetWorktree.path;
-        // Verify the target path exists
         try {
             await stat(targetPath);
         }
@@ -86,44 +87,32 @@ export async function openWorktreeHandler(pathOrBranch = "", options) {
             process.stderr.write(chalk.yellow("The worktree may have been removed. Run 'git worktree prune' to clean up.") + "\n");
             process.exit(1);
         }
-        // Open in the specified editor (or use configured default)
-        const configuredEditor = getDefaultEditor();
-        const editorCommand = options.editor || configuredEditor;
-        if (shouldSkipEditor(editorCommand)) {
+        if (options.print) {
             process.stdout.write(targetPath + "\n");
+            return;
         }
-        else {
-            // Display worktree info
-            if (targetWorktree.branch) {
-                console.log(chalk.blue(`Opening worktree for branch "${targetWorktree.branch}"...`));
-            }
-            else if (targetWorktree.detached) {
-                console.log(chalk.blue(`Opening detached worktree at ${targetWorktree.head.substring(0, 7)}...`));
-            }
-            else {
-                console.log(chalk.blue(`Opening worktree at ${targetPath}...`));
-            }
-            // Show status indicators
-            if (targetWorktree.locked) {
-                console.log(chalk.yellow(`Note: This worktree is locked${targetWorktree.lockReason ? `: ${targetWorktree.lockReason}` : ''}`));
-            }
-            if (targetWorktree.prunable) {
-                console.log(chalk.yellow(`Warning: This worktree is marked as prunable${targetWorktree.pruneReason ? `: ${targetWorktree.pruneReason}` : ''}`));
-            }
-            console.log(chalk.blue(`Opening ${targetPath} in ${editorCommand}...`));
-            try {
-                await execa(editorCommand, [targetPath], { stdio: "inherit" });
-                console.log(chalk.green(`Successfully opened worktree in ${editorCommand}.`));
-            }
-            catch (editorError) {
-                process.stderr.write(chalk.red(`Failed to open editor "${editorCommand}". Please ensure it's installed and in your PATH.`) + "\n");
-                process.exit(1);
-            }
+        // Spawn a subshell in the target directory so cd works without shell config
+        const shell = process.platform === "win32"
+            ? process.env.COMSPEC || "cmd.exe"
+            : process.env.SHELL || "/bin/sh";
+        process.stderr.write(chalk.green(`Entering ${targetPath}`) + "\n");
+        process.stderr.write(chalk.dim(`(exit or ctrl+d to return)`) + "\n");
+        const result = await execa(shell, [], {
+            cwd: targetPath,
+            stdio: "inherit",
+            reject: false,
+        });
+        if (result.signal) {
+            const signum = constants.signals[result.signal] ?? 0;
+            process.exit(128 + signum);
+        }
+        if (result.exitCode != null && result.exitCode !== 0) {
+            process.exit(result.exitCode);
         }
     }
     catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        process.stderr.write(chalk.red("Failed to open worktree: ") + message + "\n");
+        process.stderr.write(chalk.red("Failed to resolve worktree: ") + message + "\n");
         process.exit(1);
     }
 }
