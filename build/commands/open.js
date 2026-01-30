@@ -57,7 +57,9 @@ export async function openWorktreeHandler(pathOrBranch = "", options) {
                                 bare: false,
                             };
                         }
-                        catch {
+                        catch (gitErr) {
+                            if (!isEnoent(gitErr))
+                                throw gitErr;
                             process.stderr.write(chalk.red(`The path "${pathOrBranch}" exists but is not a git worktree.`) + "\n");
                             process.exit(1);
                         }
