@@ -12,7 +12,7 @@ const BASH_ZSH_FUNCTION = `wt() {
     local dir
     dir=$(command wt cd --print "\$@")
     if [[ \$? -eq 0 && -n "\$dir" ]]; then
-      builtin cd "\$dir"
+      builtin cd -- "\$dir"
     else
       command wt cd "\$@"
     fi
