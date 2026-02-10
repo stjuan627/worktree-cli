@@ -456,3 +456,21 @@ export async function popStash(cwd = ".") {
         return false;
     }
 }
+/**
+ * Get the list of local branch names
+ *
+ * @param cwd - Working directory to run git command from
+ * @returns Array of local branch names (short form)
+ */
+export async function getBranches(cwd = ".") {
+    try {
+        const { stdout } = await execa("git", ["-C", cwd, "branch", "--format=%(refname:short)"]);
+        if (!stdout.trim()) {
+            return [];
+        }
+        return stdout.split("\n").map(b => b.trim()).filter(b => b);
+    }
+    catch {
+        return [];
+    }
+}
