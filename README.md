@@ -19,6 +19,34 @@ pnpm install -g @johnlindquist/worktree
 
 ## Usage
 
+### Shell Autocompletion (bash/zsh)
+
+Enable completion for the current shell session:
+
+```bash
+eval "$(wt completion bash)"
+```
+
+```zsh
+eval "$(wt completion zsh)"
+```
+
+To enable it permanently, add the matching line to your shell profile:
+
+```bash
+echo 'eval "$(wt completion bash)"' >> ~/.bashrc
+```
+
+```zsh
+echo 'eval "$(wt completion zsh)"' >> ~/.zshrc
+```
+
+Completion coverage includes:
+- subcommands
+- worktree branches for `merge`, `remove`/`rm`, and `open`
+- git branches for `new`, `setup`, and `extract`
+- `config` subcommands (`set`, `get`, `clear`, `path`)
+
 ### Create a new worktree from Branch Name
 
 ```bash

@@ -12,6 +12,7 @@ import { configHandler } from "./commands/config.js";
 import { prWorktreeHandler } from "./commands/pr.js";
 import { openWorktreeHandler } from "./commands/open.js";
 import { extractWorktreeHandler } from "./commands/extract.js";
+import { completionHandler, getCompletions } from "./commands/completion.js";
 
 const program = new Command();
 
@@ -233,5 +234,23 @@ program
       .description("Show the path to the configuration file.")
       .action(() => configHandler("path"))
   );
+
+program
+  .command("completion")
+  .argument("[shell]", "Shell type (bash, zsh)", "bash")
+  .description(
+    'Output shell completion script. Run: eval "$(wt completion bash)"'
+  )
+  .action(completionHandler);
+
+program
+  .command("__complete", { hidden: true })
+  .allowUnknownOption()
+  .allowExcessArguments(true)
+  .action(async () => {
+    const dashIndex = process.argv.indexOf("--");
+    const words = dashIndex >= 0 ? process.argv.slice(dashIndex + 1) : [];
+    await getCompletions(words);
+  });
 
 program.parse(process.argv);
