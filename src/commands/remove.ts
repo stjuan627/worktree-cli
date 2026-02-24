@@ -125,6 +125,41 @@ export async function removeWorktreeHandler(
         }
 
         console.log(chalk.green("Worktree removed successfully!"));
+
+        // Prompt to delete local branch
+        const branch = targetWorktree.branch;
+        if (branch && !isNonInteractive) {
+            const deleteBranch = await confirm(`Delete local branch "${branch}" as well?`, true);
+            if (deleteBranch) {
+                try {
+                    await withSpinner(
+                        `Deleting branch: ${branch}`,
+                        async () => {
+                            await execa("git", ["branch", "-d", branch]);
+                        },
+                        `Branch "${branch}" deleted.`
+                    );
+                } catch (branchError: any) {
+                    if (branchError.stderr?.includes("not fully merged")) {
+                        const forceDelete = await confirm(
+                            `Branch "${branch}" is not fully merged. Force delete?`,
+                            false
+                        );
+                        if (forceDelete) {
+                            await withSpinner(
+                                `Force deleting branch: ${branch}`,
+                                async () => {
+                                    await execa("git", ["branch", "-D", branch]);
+                                },
+                                `Branch "${branch}" force deleted.`
+                            );
+                        }
+                    } else {
+                        console.error(chalk.yellow(`Could not delete branch "${branch}": ${branchError.message}`));
+                    }
+                }
+            }
+        }
     } catch (error) {
         if (error instanceof Error) {
             console.error(chalk.red("Failed to remove worktree:"), error.message);
